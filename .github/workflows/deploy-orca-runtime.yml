@@ -105,15 +105,18 @@ jobs:
 
           runtime_tag="${{ github.event_name == 'workflow_dispatch' && inputs.runtime_tag || '' }}"
           if [ -z "${runtime_tag}" ]; then
-            runtime_tag="sha-${GITHUB_SHA::7}"
+            runtime_tag="main"
           fi
 
           image_uri="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${ORCA_RUNTIME_IMAGE_NAME}:${runtime_tag}"
+          sha_image_uri="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${ORCA_RUNTIME_IMAGE_NAME}:sha-${GITHUB_SHA::7}"
 
           docker buildx build . \
             --file Dockerfile.orca-runtime \
             --platform linux/amd64 \
             --tag "${image_uri}" \
+            --tag "${sha_image_uri}" \
             --push
 
           echo "Pushed ${image_uri}"
+          echo "Pushed ${sha_image_uri}"

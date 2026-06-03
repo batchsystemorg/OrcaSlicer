@@ -170,13 +170,14 @@ Please refer to the wiki to ensure you're following the latest and most accurate
 
 This fork builds one shared Linux runtime image for the slicer middleware through GitHub Actions. Dev and prod middleware deployments should use the same pushed Orca runtime image tag.
 
-Run the **Build And Push Orca Runtime** workflow manually from GitHub Actions and set `runtime_tag`, for example `custom-001`. The workflow builds Orca on `ubuntu-24.04`, caches dependency downloads/builds, packages `build/package`, and pushes:
+The **Build And Push Orca Runtime** workflow runs on pushes to `main`. The workflow builds Orca on `ubuntu-24.04`, caches dependency downloads/builds, packages `build/package`, and pushes:
 
 ```text
-europe-west2-docker.pkg.dev/dev-bw-batchw-ly6m/batch-cr-registry/orca-runtime:RUNTIME_TAG
+europe-west2-docker.pkg.dev/dev-bw-batchw-ly6m/batch-cr-registry/orca-runtime:main
+europe-west2-docker.pkg.dev/dev-bw-batchw-ly6m/batch-cr-registry/orca-runtime:sha-SHORT_SHA
 ```
 
-Use a new `runtime_tag` whenever the Orca source changes, for example `custom-002`. The image exposes the slicer at `/opt/orcaslicer/AppRun`, which is the path expected by the middleware container.
+Use `orca-runtime:main` in the middleware so the image name stays stable across Orca changes. Manual workflow runs can still set a custom `runtime_tag`, for example `custom-001`. The image exposes the slicer at `/opt/orcaslicer/AppRun`, which is the path expected by the middleware container.
 
 # Klipper Note
 
