@@ -1,6 +1,11 @@
 Build
 Build.bat
+.git
 /build/
+!/build/
+/build/*
+!/build/package/
+!/build/package/**
 deps/build
 MYMETA.json
 MYMETA.yml

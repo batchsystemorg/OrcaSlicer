@@ -166,6 +166,18 @@ All updated build instructions for Windows, macOS, and Linux are now available o
 
 Please refer to the wiki to ensure you're following the latest and most accurate steps for your platform.
 
+## Build the middleware runtime image
+
+This fork builds one shared Linux runtime image for the slicer middleware through GitHub Actions. Dev and prod middleware deployments should use the same pushed Orca runtime image tag.
+
+Run the **Build And Push Orca Runtime** workflow manually from GitHub Actions and set `runtime_tag`, for example `custom-001`. The workflow builds Orca on `ubuntu-24.04`, caches dependency downloads/builds, packages `build/package`, and pushes:
+
+```text
+europe-west2-docker.pkg.dev/dev-bw-batchw-ly6m/batch-cr-registry/orca-runtime:RUNTIME_TAG
+```
+
+Use a new `runtime_tag` whenever the Orca source changes, for example `custom-002`. The image exposes the slicer at `/opt/orcaslicer/AppRun`, which is the path expected by the middleware container.
+
 # Klipper Note
 
 If you're running Klipper, it's recommended to add the following configuration to your `printer.cfg` file.

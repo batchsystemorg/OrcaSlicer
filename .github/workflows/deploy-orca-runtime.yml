@@ -1,0 +1,100 @@
+name: Build And Push Orca Runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      runtime_tag:
+        description: Artifact Registry tag for the Orca runtime image
+        required: true
+        default: custom-001
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: dev-bw-batchw-ly6m
+  GAR_LOCATION: europe-west2
+  GAR_REPOSITORY: batch-cr-registry
+  ORCA_RUNTIME_IMAGE_NAME: orca-runtime
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    name: Build and push runtime
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+          useLocalCache: true
+          useCloudCache: true
+
+      - name: Restore dependency cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            deps/DL_CACHE
+            deps/build/OrcaSlicer_dep
+          key: linux-runtime-deps-${{ hashFiles('deps/**', 'scripts/linux.d/**', 'build_linux.sh') }}
+          restore-keys: |
+            linux-runtime-deps-
+
+      - name: Install system dependencies
+        uses: ./.github/actions/apt-install-deps
+
+      - name: Build Orca runtime package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -d deps/build/OrcaSlicer_dep ]; then
+            ./build_linux.sh -drlL
+          else
+            echo "Using cached Orca dependencies from deps/build/OrcaSlicer_dep"
+          fi
+
+          ./build_linux.sh -srlL
+          ./scripts/check_appimage_libs.sh ./build/package ./build/package/bin/orca-slicer
+          test -x ./build/package/bin/orca-slicer
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_DEV }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL_DEV }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GAR_LOCATION}-docker.pkg.dev" --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push runtime image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          runtime_tag="${{ inputs.runtime_tag }}"
+          image_uri="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${ORCA_RUNTIME_IMAGE_NAME}:${runtime_tag}"
+
+          docker buildx build . \
+            --file Dockerfile.orca-runtime \
+            --platform linux/amd64 \
+            --tag "${image_uri}" \
+            --push
+
+          echo "Pushed ${image_uri}"
