@@ -1,11 +1,26 @@
 name: Build And Push Orca Runtime
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'deps/**'
+      - 'deps_src/**'
+      - 'src/**'
+      - 'resources/**'
+      - 'scripts/**'
+      - '**/CMakeLists.txt'
+      - 'version.inc'
+      - 'build_linux.sh'
+      - 'Dockerfile.orca-runtime'
+      - '.dockerignore'
+      - '.github/workflows/deploy-orca-runtime.yml'
   workflow_dispatch:
     inputs:
       runtime_tag:
         description: Artifact Registry tag for the Orca runtime image
-        required: true
+        required: false
         default: custom-001
 
 permissions:
@@ -88,7 +103,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          runtime_tag="${{ inputs.runtime_tag }}"
+          runtime_tag="${{ github.event_name == 'workflow_dispatch' && inputs.runtime_tag || '' }}"
+          if [ -z "${runtime_tag}" ]; then
+            runtime_tag="sha-${GITHUB_SHA::7}"
+          fi
+
           image_uri="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${ORCA_RUNTIME_IMAGE_NAME}:${runtime_tag}"
 
           docker buildx build . \
