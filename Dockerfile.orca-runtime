@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libfuse2 \
     libgl1 \
+    libglu1-mesa \
     libegl1 \
     libgtk-3-0 \
     libgdk-pixbuf2.0-0 \
@@ -23,3 +24,14 @@ COPY build/package/ /opt/orcaslicer/
 
 RUN ln -sf bin/orca-slicer /opt/orcaslicer/AppRun \
     && test -x /opt/orcaslicer/AppRun
+
+RUN set -e; \
+    find /opt/orcaslicer -type f -exec sh -c 'file -b "$1" | grep -q "^ELF "' _ {} \; -print \
+      | while IFS= read -r elf; do \
+          missing="$(ldd "$elf" 2>/dev/null | awk "/not found/ { print }")"; \
+          if [ -n "$missing" ]; then \
+            echo "Missing shared libraries for $elf"; \
+            echo "$missing"; \
+            exit 1; \
+          fi; \
+        done
