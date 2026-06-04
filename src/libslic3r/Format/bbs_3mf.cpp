@@ -358,6 +358,11 @@ static constexpr const char* OBJECT_ID_ATTR = "object_id";
 static constexpr const char* INSTANCEID_ATTR = "instance_id";
 static constexpr const char* IDENTIFYID_ATTR = "identify_id";
 static constexpr const char* PLATERID_ATTR = "plater_id";
+
+static bool is_model_start_point_metadata_key(const std::string& key)
+{
+    return key == "model_start_point_enabled" || key == "model_start_point_x" || key == "model_start_point_y";
+}
 static constexpr const char* PLATER_NAME_ATTR = "plater_name";
 static constexpr const char* PLATE_IDX_ATTR = "index";
 static constexpr const char* PRINTER_MODEL_ID_ATTR = "printer_model_id";
@@ -5111,6 +5116,8 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                     volume->source.is_converted_from_meters = metadata.value == "1";
                 else if ((metadata.key == MATRIX_KEY) || (metadata.key == MESH_SHARED_KEY))
                     continue;
+                else if (is_model_start_point_metadata_key(metadata.key))
+                    model_object->config.set_deserialize(metadata.key, metadata.value, config_substitutions);
                 else
                     volume->config.set_deserialize(metadata.key, metadata.value, config_substitutions);
             }
@@ -5259,6 +5266,8 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                     volume->source.is_converted_from_inches = metadata.value == "1";
                 else if (metadata.key == SOURCE_IN_METERS)
                     volume->source.is_converted_from_meters = metadata.value == "1";
+                else if (is_model_start_point_metadata_key(metadata.key))
+                    model_object->config.set_deserialize(metadata.key, metadata.value, config_substitutions);
                 else
                     volume->config.set_deserialize(metadata.key, metadata.value, config_substitutions);
             }

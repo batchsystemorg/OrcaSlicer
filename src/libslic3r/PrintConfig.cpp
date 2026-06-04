@@ -5418,6 +5418,29 @@ void PrintConfigDef::init_fff_params()
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionBool(false));
 
+    def = this->add("model_start_point_enabled", coBool);
+    def->label = L("Model start point");
+    def->category = L("Quality");
+    def->tooltip = L("Start the first actual model perimeter near a custom absolute bed coordinate. Skirts, brims, supports, and infill are not affected.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("model_start_point_x", coFloat);
+    def->label = L("Model start X");
+    def->category = L("Quality");
+    def->tooltip = L("Absolute bed X coordinate for the first actual model perimeter start point.");
+    def->sidetext = L("mm");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0.));
+
+    def = this->add("model_start_point_y", coFloat);
+    def->label = L("Model start Y");
+    def->category = L("Quality");
+    def->tooltip = L("Absolute bed Y coordinate for the first actual model perimeter start point.");
+    def->sidetext = L("mm");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(0.));
+
     def = this->add("seam_position", coEnum);
     def->label = L("Seam position");
     def->category = L("Quality");

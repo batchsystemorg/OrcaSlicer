@@ -2473,6 +2473,7 @@ void GCode::_do_export(Print& print, GCodeOutputStream &file, ThumbnailsGenerato
     m_last_width = 0.f;
     m_is_role_based_fan_on.fill(false);
     m_role_based_fan_marker_layer.fill(-1);
+    m_model_start_point_done_objects.clear();
 
     m_fan_mover.release();
     
@@ -5429,7 +5430,7 @@ LayerResult GCode::process_layer(
                     };
                     {
                         // Print perimeters of regions that has is_infill_first == false
-                        gcode += this->extrude_perimeters(print, by_region_specific, first_layer, false);
+                        gcode += this->extrude_perimeters(print, instance_to_print.print_object, by_region_specific, first_layer, false);
                         if (!has_wipe_tower && need_insert_timelapse_gcode_for_traditional && printer_structure == PrinterStructure::psI3
                             && !has_insert_timelapse_gcode && has_infill(by_region_specific)) {
                             gcode += this->retract(false, false, auto_lift_type, true);
@@ -5440,7 +5441,7 @@ LayerResult GCode::process_layer(
                         // Then print infill
                         gcode += this->extrude_infill(print, by_region_specific, false);
                         // Then print perimeters of regions that has is_infill_first == true
-                        gcode += this->extrude_perimeters(print, by_region_specific, first_layer, true);
+                        gcode += this->extrude_perimeters(print, instance_to_print.print_object, by_region_specific, first_layer, true);
                     }
                     // ironing
                     gcode += this->extrude_infill(print,by_region_specific, true);
@@ -5746,7 +5747,7 @@ std::string GCode::extrude_loop(const ExtrusionLoop&        loop_ref,
     // or, if `start_point` is specified, start the loop at point closest to it
     Point last_pos = start_point ? *start_point : this->last_pos();
     float seam_overhang = std::numeric_limits<float>::lowest();
-    if (!m_config.spiral_mode && description == "perimeter") {
+    if (!m_config.spiral_mode && description == "perimeter" && start_point == nullptr) {
         assert(m_layer != nullptr);
         m_seam_placer.place_seam(m_layer, loop, last_pos, seam_overhang);
     } else
@@ -6106,7 +6107,7 @@ std::string GCode::extrude_path(const ExtrusionPath& path, const std::string& de
 }
 
 // Extrude perimeters: Decide where to put seams (hide or align seams).
-std::string GCode::extrude_perimeters(const Print &print, const std::vector<ObjectByExtruder::Island::Region> &by_region, bool is_first_layer, bool is_infill_first)
+std::string GCode::extrude_perimeters(const Print &print, const PrintObject &print_object, const std::vector<ObjectByExtruder::Island::Region> &by_region, bool is_first_layer, bool is_infill_first)
 {
     std::string gcode;
     for (const ObjectByExtruder::Island::Region &region : by_region)
@@ -6118,8 +6119,17 @@ std::string GCode::extrude_perimeters(const Print &print, const std::vector<Obje
                 : (m_config.is_infill_first == is_infill_first);
             if (!should_print) continue;
 
-            for (const ExtrusionEntity* ee : region.perimeters)
+            for (const ExtrusionEntity* ee : region.perimeters) {
+                if (!m_model_start_point_done_objects.count(&print_object) && m_config.model_start_point_enabled) {
+                    if (const ExtrusionLoop* loop = dynamic_cast<const ExtrusionLoop*>(ee)) {
+                        const Point start_point = this->gcode_to_point(Vec2d(m_config.model_start_point_x.value, m_config.model_start_point_y.value));
+                        gcode += this->extrude_loop(*loop, "perimeter", -1., region.perimeters, &start_point);
+                        m_model_start_point_done_objects.insert(&print_object);
+                        continue;
+                    }
+                }
                 gcode += this->extrude_entity(*ee, "perimeter", -1., region.perimeters);
+            }
         }
     return gcode;
 }

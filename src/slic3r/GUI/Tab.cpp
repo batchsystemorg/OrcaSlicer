@@ -2331,6 +2331,9 @@ void TabPrint::build()
 
         optgroup = page->new_optgroup(L("Seam"), L"param_seam");
         optgroup->append_single_option_line("seam_position", "quality_settings_seam#seam-position");
+        optgroup->append_single_option_line("model_start_point_enabled", "quality_settings_seam#seam-position");
+        optgroup->append_single_option_line("model_start_point_x", "quality_settings_seam#seam-position");
+        optgroup->append_single_option_line("model_start_point_y", "quality_settings_seam#seam-position");
         optgroup->append_single_option_line("staggered_inner_seams", "quality_settings_seam#staggered-inner-seams");
         optgroup->append_single_option_line("seam_gap","quality_settings_seam#seam-gap");
         optgroup->append_single_option_line("seam_slope_type", "quality_settings_seam#scarf-joint-seam");
