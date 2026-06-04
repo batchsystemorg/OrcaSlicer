@@ -5117,7 +5117,7 @@ void PlateData::parse_filament_info(GCodeProcessorResult *result)
                 else if ((metadata.key == MATRIX_KEY) || (metadata.key == MESH_SHARED_KEY))
                     continue;
                 else if (is_model_start_point_metadata_key(metadata.key))
-                    model_object->config.set_deserialize(metadata.key, metadata.value, config_substitutions);
+                    object.config.set_deserialize(metadata.key, metadata.value, config_substitutions);
                 else
                     volume->config.set_deserialize(metadata.key, metadata.value, config_substitutions);
             }
