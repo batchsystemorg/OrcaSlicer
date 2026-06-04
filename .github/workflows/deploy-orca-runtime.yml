@@ -32,6 +32,8 @@ env:
   GAR_LOCATION: europe-west2
   GAR_REPOSITORY: batch-cr-registry
   ORCA_RUNTIME_IMAGE_NAME: orca-runtime
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 5G
 
 concurrency:
   group: ${{ github.workflow }}
@@ -68,10 +70,21 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/apt-install-deps
 
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .ccache
+          key: linux-runtime-ccache-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            linux-runtime-ccache-${{ github.ref_name }}-
+            linux-runtime-ccache-
+
       - name: Build Orca runtime package
         shell: bash
         run: |
           set -euo pipefail
+
+          ccache --zero-stats || true
 
           if [ ! -d deps/build/OrcaSlicer_dep ]; then
             ./build_linux.sh -drlL
@@ -79,9 +92,17 @@ jobs:
             echo "Using cached Orca dependencies from deps/build/OrcaSlicer_dep"
           fi
 
-          ./build_linux.sh -srlL
+          ./build_linux.sh -sprlL
           ./scripts/check_appimage_libs.sh ./build/package ./build/package/bin/orca-slicer
           test -x ./build/package/bin/orca-slicer
+          ccache --show-stats || true
+
+      - name: Save compiler cache
+        if: success()
+        uses: actions/cache/save@v5
+        with:
+          path: .ccache
+          key: linux-runtime-ccache-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

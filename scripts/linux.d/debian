@@ -23,6 +23,7 @@ REQUIRED_DEV_PACKAGES=(
     libtool
     libudev-dev
     clang
+    ccache
     lld
     ninja-build
     texinfo
