@@ -141,3 +141,105 @@ jobs:
 
           echo "Pushed ${image_uri}"
           echo "Pushed ${sha_image_uri}"
+
+  build-and-push-arm64:
+    name: Build and push runtime (arm64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 480
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "~4.3.0"
+          useLocalCache: true
+          useCloudCache: true
+
+      - name: Restore dependency cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            deps/DL_CACHE
+            deps/build/OrcaSlicer_dep
+          key: linux-arm64-runtime-deps-${{ hashFiles('deps/**', 'scripts/linux.d/**', 'build_linux.sh') }}
+          restore-keys: |
+            linux-arm64-runtime-deps-
+
+      - name: Install system dependencies
+        uses: ./.github/actions/apt-install-deps
+
+      - name: Restore compiler cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .ccache
+          key: linux-arm64-runtime-ccache-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            linux-arm64-runtime-ccache-${{ github.ref_name }}-
+            linux-arm64-runtime-ccache-
+
+      - name: Build Orca runtime package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ccache --zero-stats || true
+
+          if [ ! -d deps/build/OrcaSlicer_dep ]; then
+            ./build_linux.sh -drlL
+          else
+            echo "Using cached Orca dependencies from deps/build/OrcaSlicer_dep"
+          fi
+
+          ./build_linux.sh -sprlL
+          ./scripts/check_appimage_libs.sh ./build/package ./build/package/bin/orca-slicer
+          test -x ./build/package/bin/orca-slicer
+          ccache --show-stats || true
+
+      - name: Save compiler cache
+        if: success()
+        uses: actions/cache/save@v5
+        with:
+          path: .ccache
+          key: linux-arm64-runtime-ccache-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER_DEV }}
+          service_account: ${{ secrets.SERVICE_ACCOUNT_EMAIL_DEV }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GAR_LOCATION}-docker.pkg.dev" --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push runtime image (arm64)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          runtime_tag="${{ github.event_name == 'workflow_dispatch' && inputs.runtime_tag || '' }}"
+          if [ -z "${runtime_tag}" ]; then
+            runtime_tag="main"
+          fi
+
+          image_uri="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${ORCA_RUNTIME_IMAGE_NAME}:${runtime_tag}-arm64"
+          sha_image_uri="${GAR_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${GAR_REPOSITORY}/${ORCA_RUNTIME_IMAGE_NAME}:sha-${GITHUB_SHA::7}-arm64"
+
+          docker buildx build . \
+            --file Dockerfile.orca-runtime \
+            --platform linux/arm64 \
+            --tag "${image_uri}" \
+            --tag "${sha_image_uri}" \
+            --push
+
+          echo "Pushed ${image_uri}"
+          echo "Pushed ${sha_image_uri}"
